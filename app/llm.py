@@ -14,9 +14,8 @@ def generate_chat(messages):
         "POST",
         OLLAMA_URL,
         json={"model": "llama3.2", "messages": messages, "stream": True},
-        timeout=None,
+        timeout=60.0,
     ) as response:
-        buffer = ""
         for line in response.iter_lines():
             if not line:
                 continue
@@ -25,9 +24,4 @@ def generate_chat(messages):
                 break
             content = data.get("message", {}).get("content", "")
             if content:
-                buffer += content
-                if len(buffer) >= 5:
-                    yield buffer
-                    buffer = ""
-        if buffer:
-            yield buffer
+                yield content

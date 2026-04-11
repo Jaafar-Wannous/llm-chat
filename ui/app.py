@@ -5,7 +5,29 @@ API_URL = "http://127.0.0.1:8000/chat"
 WEBHOOK_URL = "http://localhost:5678/webhook-test/chat-trigger"
 
 
-async def chat(message, history):        
+async def chat(message, history):
+    if message.startswith("/email"):
+        try:
+            _, email, *text = message.split(" ")
+            content = " ".join(text)
+
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    WEBHOOK_URL,
+                    json={
+                        "subject": "AI Notification",
+                        "to": email,
+                        "message": content,
+                    },
+                )
+
+            yield "✅ Email sent via n8n!"
+            return
+
+        except Exception:
+            yield "Usage: /email test@gmail.com your message"
+            return
+        
     messages = []
     for turn in history:
         role = turn["role"]

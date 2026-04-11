@@ -2,9 +2,10 @@ import httpx
 import gradio as gr
 
 API_URL = "http://127.0.0.1:8000/chat"
+WEBHOOK_URL = "http://localhost:5678/webhook-test/chat-trigger"
 
 
-async def chat(message, history):
+async def chat(message, history):        
     messages = []
     for turn in history:
         role = turn["role"]

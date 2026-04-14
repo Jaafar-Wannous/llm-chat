@@ -1,13 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
-from app.llm import generate_chat
+from pydantic import BaseModel, Field
+from app.llm import generate_chat, LLMError
 
 app = FastAPI()
 
 
 class ChatRequest(BaseModel):
-    messages: list
+    messages: list[dict[str, str]] = Field(
+        ..., examples=[{"role": "user", "content": "Hello"}]
+    )
 
 
 @app.get("/health")
@@ -17,4 +19,9 @@ def health():
 
 @app.post("/chat")
 def chat_endpoint(request: ChatRequest):
-    return StreamingResponse(generate_chat(request.messages), media_type="text/plain")
+    try:
+        return StreamingResponse(
+            generate_chat(request.messages), media_type="text/plain"
+        )
+    except LLMError as e:
+        raise HTTPException(status_code=500, detail=str(e))

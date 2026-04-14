@@ -1,3 +1,4 @@
+import os
 import httpx
 import json
 from langsmith import traceable
@@ -5,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = os.getenv("OLLAMA_URL")
 
 
 @traceable(name="generate_chat_stream")

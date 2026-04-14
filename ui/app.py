@@ -1,9 +1,13 @@
+import os
 import httpx
 import gradio as gr
+from dotenv import load_dotenv
 
-API_URL = "http://127.0.0.1:8000/chat"
-WEBHOOK_URL = "http://localhost:5678/webhook-test/chat-trigger"
+load_dotenv()
 
+API_URL = os.getenv("API_URL")
+TODO_WEBHOOK = os.getenv("TODO_WEBHOOK")
+EMAIL_WEBHOOK = os.getenv("EMAIL_WEBHOOK")
 
 async def chat(message, history):
     if message.startswith("/email"):
@@ -13,9 +17,9 @@ async def chat(message, history):
 
             async with httpx.AsyncClient() as client:
                 await client.post(
-                    WEBHOOK_URL,
+                    EMAIL_WEBHOOK,
                     json={
-                        "subject": "AI Notification",
+                        "subject": "AI Notification ",
                         "to": email,
                         "message": content,
                     },
@@ -27,7 +31,25 @@ async def chat(message, history):
         except Exception:
             yield "Usage: /email test@gmail.com your message"
             return
-        
+
+    if message.startswith("/todo"):
+        try:
+            _, *task = message.split(" ")
+            task = " ".join(task)
+
+            async with httpx.AsyncClient() as client:
+                await client.post(
+                    TODO_WEBHOOK,
+                    json={"task": task},
+                )
+
+            yield f"✅ Task added: {task}"
+            return
+
+        except Exception:
+            yield "Usage: /todo Buy milk"
+            return
+
     messages = []
     for turn in history:
         role = turn["role"]

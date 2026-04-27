@@ -1,65 +1,79 @@
-import os
-import httpx
 import json
-from typing import Generator
-from langsmith import traceable
-from pydantic import BaseModel, Field, ValidationError
-from dotenv import load_dotenv
+import logging
+from typing import AsyncIterator
 
-load_dotenv()
-OLLAMA_URL = os.getenv("OLLAMA_URL")
+import httpx
+from pydantic import BaseModel, ConfigDict
 
-class ChatMessages(BaseModel):
-    role: str = Field(..., examples=["user"])
-    content: str = Field(..., examples=["Hello"])
+from app.config import get_settings
+from app.schemas import ChatMessage
 
-
-class ChatPayload(BaseModel):
-    model: str = "llama3.2"
-    messages: list[ChatMessages]
-    stream: bool = True
+logger = logging.getLogger(__name__)
 
 
 class LLMError(Exception):
     pass
 
 
-@traceable(name="generate_chat_stream")
-def generate_chat(messages: list[dict]) -> Generator[str, None, None]:
-    if not OLLAMA_URL:
+class ChatPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    model: str
+    messages: list[ChatMessage]
+    stream: bool = True
+
+
+def generate_chat(
+    messages: list[ChatMessage], model: str | None = None
+) -> AsyncIterator[str]:
+    settings = get_settings()
+
+    if not settings.ollama_url:
         raise LLMError("OLLAMA_URL is not set")
 
-    try:
-        validated_messages = [ChatMessages(**msg) for msg in messages]
-        payload = ChatPayload(messages=validated_messages)
-    except ValidationError as e:
-        raise LLMError(f"Invalid message format: {e}")
+    payload = ChatPayload(
+        model=model or settings.default_model,
+        messages=messages,
+        stream=True,
+    )
 
-    try:
-        with httpx.stream(
-            "POST",
-            OLLAMA_URL,
-            json=payload.model_dump(),
-            timeout=httpx.Timeout(10.0, read=120.0),
-        ) as response:
-            if response.status_code != 200:
-                raise LLMError(f"Ollama error: {response.status_code}")
+    timeout = httpx.Timeout(
+        connect=settings.connect_timeout,
+        read=settings.read_timeout,
+        write=10.0,
+        pool=10.0,
+    )
 
-            for line in response.iter_lines():
-                if not line:
-                    continue
+    async def _stream() -> AsyncIterator[str]:
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                async with client.stream(
+                    "POST",
+                    settings.ollama_url,
+                    json=payload.model_dump(),
+                ) as response:
+                    response.raise_for_status()
 
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
+                            continue
 
-                if data.get("done"):
-                    break
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            logger.debug("Skipping non-JSON chunk: %r", line)
+                            continue
 
-                content = data.get("message", {}).get("content", "")
-                if content:
-                    yield content
+                        content = data.get("message", {}).get("content", "")
+                        if content:
+                            yield content
 
-    except httpx.RequestError as e:
-        raise LLMError(f"Connection error: {str(e)}")
+                        if data.get("done"):
+                            break
+
+        except httpx.HTTPStatusError as e:
+            raise LLMError(f"Ollama returned {e.response.status_code}") from e
+        except httpx.RequestError as e:
+            raise LLMError(f"Connection error: {e}") from e
+
+    return _stream()

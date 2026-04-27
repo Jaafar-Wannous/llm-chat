@@ -1,27 +1,24 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-from app.llm import generate_chat, LLMError
 
-app = FastAPI()
+from app.llm import LLMError, generate_chat
+from app.schemas import ChatRequest
 
-
-class ChatRequest(BaseModel):
-    messages: list[dict[str, str]] = Field(
-        ..., examples=[{"role": "user", "content": "Hello"}]
-    )
+app = FastAPI(title="Llama 3.2 Chat API", version="2.0.0")
 
 
 @app.get("/health")
-def health():
+async def health():
     return {"status": "ok"}
 
 
 @app.post("/chat")
-def chat_endpoint(request: ChatRequest):
+async def chat_endpoint(request: ChatRequest):
     try:
-        return StreamingResponse(
-            generate_chat(request.messages), media_type="text/plain"
+        stream = generate_chat(
+            messages=request.messages,
+            model=request.model,
         )
+        return StreamingResponse(stream, media_type="text/plain; charset=utf-8")
     except LLMError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

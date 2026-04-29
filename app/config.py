@@ -16,7 +16,9 @@ class Settings:
     email_webhook: str
     default_model: str = "llama3.2"
     connect_timeout: float = 10.0
-    read_timeout: float = 120.0
+    read_timeout: float = 180.0   
+    write_timeout: float = 30.0
+    pool_timeout: float = 10.0
 
 
 @lru_cache

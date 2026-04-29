@@ -190,8 +190,14 @@ async def chat(message, history):
 ui = gr.ChatInterface(
     fn=chat,
     title="Chat with Llama 3.2",
-    description="Streaming Chat",
+    description="Streaming Chat + Tools (n8n)",
+    examples=[
+        "Hello",
+        "/todo Go to Gym",
+        "/email test@gmail.com hello",
+    ],
 )
+
 
 if __name__ == "__main__":
     ui.launch()

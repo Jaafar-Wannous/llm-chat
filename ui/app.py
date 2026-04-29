@@ -3,6 +3,7 @@ import logging
 
 import httpx
 import gradio as gr
+
 from app.config import get_settings
 
 logging.basicConfig(level=logging.INFO)
@@ -87,58 +88,103 @@ async def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
         return {"result": response.text.strip()}
 
 
+async def handle_email(message: str) -> str:
+    parts = message.split(" ", 2)
+
+    if len(parts) < 3:
+        return "❌ Usage: /email test@gmail.com your message"
+
+    _, email, body = parts
+
+    try:
+        result = await _post_json(
+            settings.email_webhook,
+            {
+                "subject": "AI Notification",
+                "to": email,
+                "message": body,
+            },
+        )
+
+        return result.get("message")
+
+    except Exception as e:
+        logger.exception("Email failed")
+        return f"{e}"
+
+
+async def handle_todo(message: str) -> str:
+    task = message.removeprefix("/todo ").strip()
+
+    if not task:
+        return "❌ Usage: /todo your task"
+
+    try:
+        result = await _post_json(
+            settings.todo_webhook,
+            {"task": task},
+        )
+
+        return result.get("message")
+
+    except Exception as e:
+        logger.exception("Todo failed")
+        return f"{e}"
+
+
 async def chat(message, history):
-    if message.startswith("/email"):
-        try:
-            _, email, *text = message.split(" ")
-            content = " ".join(text)
+    if isinstance(message, dict):
+        message = message.get("text", "")
 
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    settings.api_url,
-                    json={
-                        "subject": "AI Notification ",
-                        "to": email,
-                        "message": content,
-                    },
-                )
+    message = (message or "").strip(max)
+    if not message:
+        yield "Please type a message."
+        return
 
-            yield "✅ Email sent via n8n!"
+    if message.startswith("/"):
+        if message.startswith("/email"):
+            yield await handle_email(message)
             return
 
-        except Exception:
-            yield "Usage: /email test@gmail.com your message"
+        if message.startswith("/todo"):
+            yield await handle_todo(message)
             return
 
-    if message.startswith("/todo"):
-        try:
-            _, *task = message.split(" ")
-            task = " ".join(task)
-
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    settings.todo_webhook,
-                    json={"task": task},
-                )
-
-            yield f"✅ Task added: {task}"
-            return
-
-        except Exception:
-            yield "Usage: /todo Buy milk"
-            return
+        yield "❌ Unknown command"
+        return
 
     messages = _history_to_messages(history)
+    messages.append({"role": "user", "content": message})
 
-    async with httpx.AsyncClient() as client:
-        async with client.stream(
-            "POST", settings.api_url, json={"messages": messages}
-        ) as response:
-            full_response = ""
-            async for chunk in response.aiter_text():
-                if chunk:
-                    full_response += chunk
-                    yield full_response
+    try:
+        timeout = httpx.Timeout(
+            connect=settings.connect_timeout,
+            read=settings.read_timeout,
+            write=settings.write_timeout,
+            pool=settings.pool_timeout,
+        )
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            async with client.stream(
+                "POST",
+                settings.api_url,
+                json={"messages": messages},
+            ) as response:
+                response.raise_for_status()
+
+                full_response = ""
+                async for chunk in response.aiter_text():
+                    if chunk:
+                        full_response += chunk
+                        yield full_response
+
+    except httpx.HTTPStatusError as e:
+        details = e.response.text.strip()
+        logger.exception("Chat HTTP error")
+        yield details or f"❌ HTTP error: {e.response.status_code}"
+
+    except httpx.RequestError as e:
+        logger.exception("Chat failed")
+        yield f"❌ Connection error: {e}"
 
 
 ui = gr.ChatInterface(

@@ -136,7 +136,7 @@ async def chat(message, history):
     if isinstance(message, dict):
         message = message.get("text", "")
 
-    message = (message or "").strip(max)
+    message = (message or "").strip()
     if not message:
         yield "Please type a message."
         return

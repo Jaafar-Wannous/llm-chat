@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
+
 def _extract_text(content: Any) -> str:
     if isinstance(content, str):
         return content
@@ -36,6 +37,54 @@ def _history_to_messages(history: list[dict[str, Any]]) -> list[dict[str, str]]:
             messages.append({"role": role, "content": content})
 
     return messages
+
+
+def _format_http_error(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+    except Exception:
+        return response.text.strip() or f"HHTP {response.status_code}"
+
+    if isinstance(data, dict) and data.get("status") == "error":
+        return data.get("message", "Something went wrong in the workflow.")
+
+    message = data.get("message")
+    hint = data.get("hint")
+
+    if message:
+        if hint:
+            return f"❌ {message} {hint}"
+
+        return f"Unexpected error: {data}"
+
+    return response.text.strip() or f"HTTP {response.status_code}"
+
+
+async def _post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+    if not url:
+        raise RuntimeError("Webhook URL is not configured")
+
+    timeout = httpx.Timeout(
+        connect=settings.connect_timeout,
+        read=settings.read_timeout,
+        write=settings.write_timeout,
+        pool=settings.pool_timeout,
+    )
+
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        response = await client.post(url, json=payload)
+
+    if response.status_code >= 400:
+        raise RuntimeError(_format_http_error(response))
+
+    if not response.content:
+        return {}
+
+    try:
+        data = response.json()
+        return data if isinstance(data, dict) else {"result": data}
+    except Exception:
+        return {"result": response.text.strip()}
 
 
 async def chat(message, history):

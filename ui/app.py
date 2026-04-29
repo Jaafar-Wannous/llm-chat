@@ -1,13 +1,9 @@
-import os
 import httpx
 import gradio as gr
-from dotenv import load_dotenv
+from app.config import get_settings
 
-load_dotenv()
+settings = get_settings()
 
-API_URL = os.getenv("API_URL")
-TODO_WEBHOOK = os.getenv("TODO_WEBHOOK")
-EMAIL_WEBHOOK = os.getenv("EMAIL_WEBHOOK")
 
 async def chat(message, history):
     if message.startswith("/email"):
@@ -17,7 +13,7 @@ async def chat(message, history):
 
             async with httpx.AsyncClient() as client:
                 await client.post(
-                    EMAIL_WEBHOOK,
+                    settings.api_url,
                     json={
                         "subject": "AI Notification ",
                         "to": email,
@@ -39,7 +35,7 @@ async def chat(message, history):
 
             async with httpx.AsyncClient() as client:
                 await client.post(
-                    TODO_WEBHOOK,
+                    settings.todo_webhook,
                     json={"task": task},
                 )
 
@@ -59,7 +55,7 @@ async def chat(message, history):
 
     async with httpx.AsyncClient() as client:
         async with client.stream(
-            "POST", API_URL, json={"messages": messages}
+            "POST", settings.api_url, json={"messages": messages}
         ) as response:
             full_response = ""
             async for chunk in response.aiter_text():

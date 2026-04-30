@@ -114,7 +114,7 @@ async def handle_email(message: str) -> str:
 
 
 async def handle_todo(message: str) -> str:
-    task = message.removeprefix("/todo ").strip()
+    task = message.removeprefix("/todo").strip()
 
     if not task:
         return "❌ Usage: /todo your task"

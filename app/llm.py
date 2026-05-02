@@ -42,7 +42,7 @@ def generate_chat(
     timeout = httpx.Timeout(
         connect=settings.connect_timeout,
         read=settings.read_timeout,
-        write=settings.read_timeout,
+        write=settings.write_timeout,
         pool=settings.pool_timeout,
     )
 

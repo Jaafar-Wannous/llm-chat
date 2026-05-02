@@ -29,6 +29,6 @@ def get_settings() -> Settings:
         default_model=os.getenv("DEFAULT_MODEL", "llama3.2").strip(),
         connect_timeout=float(os.getenv("CONNECT_TIMEOUT", "10")),
         read_timeout=float(os.getenv("READ_TIMEOUT", "180")),
-        write_timeout=float(os.getenv("WRITE_TIMOUT", "30")),
-        pool_timeout=float(os.getenv("POOL_TIMOUT", "10"))
+        write_timeout=float(os.getenv("WRITE_TIMEOUT", "30")),
+        pool_timeout=float(os.getenv("POOL_TIMEOUT", "10"))
     )

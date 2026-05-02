@@ -56,7 +56,7 @@ def _format_http_error(response: httpx.Response) -> str:
         if hint:
             return f"❌ {message} {hint}"
 
-        return f"Unexpected error: {data}"
+        return f"{message}"
 
     return response.text.strip() or f"HTTP {response.status_code}"
 
@@ -111,6 +111,7 @@ async def handle_email(message: str) -> str:
     except Exception as e:
         logger.exception("Email failed")
         return f"{e}"
+
 
 async def chat(message, history):
     if isinstance(message, dict):

@@ -73,8 +73,9 @@ def stream_chat_response(
                             break
 
         except httpx.HTTPStatusError as e:
-            raise LLMError(f"Ollama returned {e.response.status_code}") from e
+            yield f"\n❌ Error: Ollama returned {e.response.status_code}"
+            return
         except httpx.RequestError as e:
-            raise LLMError(f"Connection error: {e}") from e
+            yield f"\n❌ Connection error: {e}"
 
     return _stream()

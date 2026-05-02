@@ -42,8 +42,8 @@ def generate_chat(
     timeout = httpx.Timeout(
         connect=settings.connect_timeout,
         read=settings.read_timeout,
-        write=10.0,
-        pool=10.0,
+        write=settings.read_timeout,
+        pool=settings.pool_timeout,
     )
 
     async def _stream() -> AsyncIterator[str]:

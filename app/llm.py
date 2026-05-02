@@ -1,6 +1,5 @@
 import json
 import logging
-from langsmith import traceable
 
 from typing import AsyncIterator
 
@@ -24,8 +23,7 @@ class ChatPayload(BaseModel):
     stream: bool = True
 
 
-@traceable(name="generate_chat_stream")
-def generate_chat(
+def stream_chat_response(
     messages: list[ChatMessage], model: str | None = None
 ) -> AsyncIterator[str]:
     settings = get_settings()

@@ -44,7 +44,7 @@ def _format_http_error(response: httpx.Response) -> str:
     try:
         data = response.json()
     except Exception:
-        return response.text.strip() or f"HHTP {response.status_code}"
+        return response.text.strip() or f"HTTP {response.status_code}"
 
     if isinstance(data, dict) and data.get("status") == "error":
         return data.get("message", "Something went wrong in the workflow.")

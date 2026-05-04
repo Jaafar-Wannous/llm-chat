@@ -112,6 +112,27 @@ async def handle_email(message: str) -> str:
         logger.exception("Email failed")
         return f"{e}"
 
+async def handle_todo(message: str) -> str:
+    parts = message.split(" ", 1)
+
+    if len(parts) < 2:
+        return "❌ Usage: /todo your task"
+
+    _, body = parts
+
+    try:
+        result = await _post_json(
+            settings.todo_webhook,
+            {
+                "task": body,
+            },
+        )
+
+        return result.get("message", "✅ Task created")
+
+    except Exception as e:
+        logger.exception("Todo failed")
+        return f"❌ {e}"
 
 async def chat(message, history):
     if isinstance(message, dict):
@@ -125,6 +146,10 @@ async def chat(message, history):
     if message.startswith("/"):
         if message.startswith("/email"):
             yield await handle_email(message)
+            return
+        
+        if message.startswith("/todo"):
+            yield await handle_todo(message)
             return
 
         yield "❌ Unknown command"
@@ -170,6 +195,7 @@ ui = gr.ChatInterface(
     description="Streaming Chat + Tools (n8n)",
     examples=[
         "Hello",
+        "/todo Go to Gym saturday at 5:30PM",
         "/email test@gmail.com hello",
     ],
 )

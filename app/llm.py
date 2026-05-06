@@ -6,7 +6,7 @@ from typing import AsyncIterator
 import httpx
 from pydantic import BaseModel, ConfigDict
 
-from app.config import get_settings
+from app.config import settings
 from app.schemas import ChatMessage
 
 logger = logging.getLogger(__name__)
@@ -26,13 +26,12 @@ class ChatPayload(BaseModel):
 def stream_chat_response(
     messages: list[ChatMessage], model: str | None = None
 ) -> AsyncIterator[str]:
-    settings = get_settings()
 
     if not settings.ollama_url:
         raise LLMError("OLLAMA_URL is not set")
 
     payload = ChatPayload(
-        model=model or settings.default_model,
+        model=settings.default_model,
         messages=messages,
         stream=True,
     )

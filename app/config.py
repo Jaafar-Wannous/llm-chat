@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     ollama_url: str
-    api_url: str = "http://127.0.0.1:8000/chat"
+    api_url: str 
     email_webhook: str
     todo_webhook: str
 
